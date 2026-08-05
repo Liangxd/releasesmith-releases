@@ -26,7 +26,7 @@ gh repo create Liangxd/releasesmith-releases --public --add-readme
 
 ## 版本发布
 
-标签必须与 `src-tauri/tauri.conf.json` 的版本一致。当前工作区配置仍是 `0.2.0`；要发布 `v1.0.0`，先把项目版本统一改为 `1.0.0` 并提交：
+标签必须与 `src-tauri/tauri.conf.json` 的版本一致。当前工作区配置是 `0.3.0`；要发布 `v1.0.0`，先把项目版本统一改为 `1.0.0` 并提交：
 
 ```bash
 git push origin main
