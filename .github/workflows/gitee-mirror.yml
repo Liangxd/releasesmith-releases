@@ -1,0 +1,68 @@
+name: Mirror GitHub Release to Gitee
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: GitHub Release tag to mirror
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gitee-release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  GITEE_OWNER: "freedom-seeker"
+  GITEE_REPOSITORY: "releasesmith-releases"
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      RELEASE_PRODUCT: ${{ github.event.repository.name || 'Release' }}
+
+    steps:
+      - name: Checkout mirror scripts
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Wait for complete GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/wait-for-release-assets.mjs
+
+      - name: Download GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir release \
+            --pattern '*'
+
+      - name: Generate SHA256SUMS.txt
+        run: node scripts/generate-sha256sums.mjs --assets-dir release --output release/SHA256SUMS.txt
+
+      - name: Upload SHA256SUMS.txt to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" release/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Synchronize release to Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          RELEASE_DIRECTORY: release
+        run: node scripts/sync-gitee-release.mjs
